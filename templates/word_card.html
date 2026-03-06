@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .word-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .pos-section {
+            margin: 16px 0;
+        }
+
+        .pos-label {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .pos-meanings {
+            color: #34495e;
+            font-size: 18px;
+            line-height: 1.6;
+            margin-left: 8px;
+        }
+
+        .core-image {
+            background: #fff9e6;
+            border-left: 4px solid #f39c12;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .core-image-label {
+            font-weight: bold;
+            color: #e67e22;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .core-image-text {
+            color: #555;
+            font-size: 16px;
+        }
+
+        .derivatives {
+            background: #f0f8ff;
+            border-left: 4px solid #9b59b6;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .derivatives-label {
+            font-weight: bold;
+            color: #8e44ad;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .derivatives-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .derivatives-list li {
+            color: #555;
+            font-size: 15px;
+            margin: 4px 0;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .derivatives-list li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #9b59b6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        {{CONTENT}}
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,18 @@
+{
+    "ollama": {
+        "model": "qwen3:8b",
+        "base_url": "http://localhost:11434"
+    },
+    "anki": {
+        "connect_url": "http://localhost:8765",
+        "deck_name": "英語学習v1",
+        "model_name": "English Learning Card"
+    },
+    "database": {
+        "path": "database.db"
+    },
+    "templates": {
+        "word_template": "templates/word_card.html",
+        "css_file": "templates/card_style.css"
+    }
+}
