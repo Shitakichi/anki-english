@@ -4,6 +4,7 @@ import requests
 from datetime import datetime
 from pathlib import Path
 import sys
+import os
 
 class AnkiCardGenerator:
     def __init__(self, config_path='config.json'):
@@ -16,6 +17,10 @@ class AnkiCardGenerator:
         self.ollama_model = self.config['ollama']['model']
         self.anki_url = self.config['anki']['connect_url']
         self.deck_name = self.config['anki']['deck_name']
+
+        prompt_path = self.config.get('prompts', {}).get('word_prompt', 'prompts/word_prompt.json')
+        with open(prompt_path, 'r', encoding='utf-8') as f:
+            self.word_prompt_config = json.load(f)
         
     def read_input_file(self, filepath):
         """入力テキストファイルを読み込む"""
@@ -23,43 +28,40 @@ class AnkiCardGenerator:
             content = f.read().strip()
         return content
     
-    def generate_html_with_llm(self, raw_text):
-        """OllamaのLLMを使ってHTML断片を生成"""
+    def generate_json_with_llm(self, raw_text):
+        """OllamaのLLMを使ってJSON形式でデータを生成"""
+    
+        # Few-shotプロンプトを構築
+        prompt_config = self.word_prompt_config
         
-        prompt = f"""あなたは英語学習用のAnkiカード生成アシスタントです。
-以下の単語情報から、HTMLコンテンツ部分のみを生成してください。
-
-入力テキスト:
-{raw_text}
-
-生成ルール:
-1. 単語名は <div class="word-title">単語</div> で囲む
-2. 品詞ごとに以下の形式で出力:
-   <div class="pos-section">
-     <span class="pos-label">品詞名</span>
-     <span class="pos-meanings">意味1、意味2、意味3</span>
-   </div>
-3. コアイメージがあれば:
-   <div class="core-image">
-     <div class="core-image-label">コアイメージ</div>
-     <div class="core-image-text">イメージ内容</div>
-   </div>
-4. 派生語があれば:
-   <div class="derivatives">
-     <div class="derivatives-label">派生語</div>
-     <ul class="derivatives-list">
-       <li>単語(意味)</li>
-     </ul>
-   </div>
-
-注意:
-- <html>、<body>、<style>タグは含めない
-- 純粋なコンテンツ部分のみ出力
-- 日本語の説明文は一切不要
-- HTMLコードのみを出力
-
-出力:"""
-
+        # システム指示
+        prompt_parts = [prompt_config['system_instruction'], "\n"]
+        
+        # 出力形式の説明
+        prompt_parts.append("## 出力形式\n")
+        prompt_parts.append(json.dumps(prompt_config['output_format']['schema'], ensure_ascii=False, indent=2))
+        prompt_parts.append("\n\n")
+        
+        # ルール
+        prompt_parts.append("## ルール\n")
+        for rule in prompt_config['rules']:
+            prompt_parts.append(f"- {rule}\n")
+        prompt_parts.append("\n")
+        
+        # Few-shot例
+        prompt_parts.append("## 例\n\n")
+        for i, example in enumerate(prompt_config['examples'], 1):
+            prompt_parts.append(f"### 例{i}\n")
+            prompt_parts.append(f"入力:\n{example['input']}\n\n")
+            prompt_parts.append(f"出力:\n{json.dumps(example['output'], ensure_ascii=False, indent=2)}\n\n")
+        
+        # 実際の処理対象
+        prompt_parts.append("## 実際の処理\n")
+        prompt_parts.append(f"入力:\n{raw_text}\n\n")
+        prompt_parts.append("出力:\n")
+        
+        prompt = "".join(prompt_parts)
+        
         try:
             response = requests.post(
                 f"{self.ollama_url}/api/generate",
@@ -68,26 +70,99 @@ class AnkiCardGenerator:
                     "prompt": prompt,
                     "stream": False
                 },
-                timeout=60
+                timeout=90  # Few-shotで長くなるのでタイムアウト延長
             )
             response.raise_for_status()
             result = response.json()
-            generated_html = result['response'].strip()
+            generated_text = result['response'].strip()
             
             # コードブロックのマークダウン記法を除去
-            if generated_html.startswith('```html'):
-                generated_html = generated_html.replace('```html', '').replace('```', '').strip()
-            elif generated_html.startswith('```'):
-                generated_html = generated_html.replace('```', '').strip()
+            if generated_text.startswith('```json'):
+                generated_text = generated_text.replace('```json', '').replace('```', '').strip()
+            elif generated_text.startswith('```'):
+                generated_text = generated_text.replace('```', '').strip()
             
-            return generated_html
+            # JSONパース
+            try:
+                data = json.loads(generated_text)
+                return data
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON解析エラー: {e}")
+                print(f"LLM出力:\n{generated_text}")
+                return None
             
         except Exception as e:
             print(f"❌ LLM生成エラー: {e}")
             return None
+        
+    def convert_json_to_html(self, data):
+        """JSONデータからHTMLコンテンツを生成"""
+        html_parts = []
+        
+        # 単語タイトル
+        html_parts.append(f'<div class="word-title">{data["word"]}</div>')
+        
+        # 品詞セクション
+        for pos_section in data.get("pos_sections", []):
+            pos = pos_section.get("pos", "")
+            meanings = pos_section.get("meanings", [])
+            meanings_text = "、".join(meanings)
+            
+            html_parts.append(f'''<div class="pos-section">
+        <span class="pos-label">{pos}</span>
+        <span class="pos-meanings">{meanings_text}</span>
+    </div>''')
+        
+        # コアイメージ
+        core_image = data.get("core_image")
+        if core_image:
+            html_parts.append(f'''<div class="core-image">
+        <div class="core-image-label">コアイメージ</div>
+        <div class="core-image-text">{core_image}</div>
+    </div>''')
+        
+        # 派生語
+        derivatives = data.get("derivatives")
+        if derivatives:
+            html_parts.append('''<div class="derivatives">
+        <div class="derivatives-label">派生語</div>
+        <ul class="derivatives-list">''')
+            
+            for deriv in derivatives:
+                word = deriv.get("word", "")
+                meaning = deriv.get("meaning", "")
+                html_parts.append(f'        <li>{word}({meaning})</li>')
+            
+            html_parts.append('''    </ul>
+    </div>''')
+        
+        # 例文
+        examples = data.get("examples")
+        if examples:
+            html_parts.append('''<div class="examples">
+        <div class="examples-label">例文</div>
+        <ul class="examples-list">''')
+            
+            for example in examples:
+                html_parts.append(f'        <li>{example}</li>')
+            
+            html_parts.append('''    </ul>
+    </div>''')
+        
+        return "\n".join(html_parts)
     
-    def wrap_with_template(self, content_html):
-        """生成されたHTMLをテンプレートに埋め込む"""
+    def wrap_with_template(self, content_html, for_anki=False):  # ← for_anki引数を追加
+        """生成されたHTMLをテンプレートに埋め込む
+        
+        Args:
+            content_html: コンテンツHTML
+            for_anki: True=Anki用(コンテンツのみ), False=プレビュー用(CSS含む)
+        """
+        if for_anki:
+            # Anki用: コンテンツのみ (Anki側でスタイル適用)
+            return content_html
+        
+        # プレビュー用: CSS含む完全版
         template_path = self.config['templates']['word_template']
         with open(template_path, 'r', encoding='utf-8') as f:
             template = f.read()
@@ -128,18 +203,23 @@ class AnkiCardGenerator:
             pass  # デッキが既に存在する場合はエラーになるが無視
         
         # ノート追加
+        model_name = self.config['anki'].get('model_name', 'English Learning Card')
+
         note_payload = {
             "action": "addNote",
             "version": 6,
             "params": {
                 "note": {
                     "deckName": self.deck_name,
-                    "modelName": "Basic",
+                    "modelName": model_name,  # ← カスタムモデルを使用
                     "fields": {
                         "Front": front_html,
                         "Back": ""  # 1面型なのでBackは空
                     },
-                    "tags": ["auto-generated", "english-learning"]
+                    "tags": ["auto-generated", "english-learning"],
+                    "options": {
+                        "allowDuplicate": False
+                    }
                 }
             }
         }
@@ -184,45 +264,51 @@ class AnkiCardGenerator:
         print(raw_text)
         print("-" * 60 + "\n")
         
-        # 2. LLMでHTML生成
-        print("🤖 LLMでHTML生成中...")
-        content_html = self.generate_html_with_llm(raw_text)
-        
-        if not content_html:
-            print("❌ HTML生成失敗")
+        # 2. LLMでJSON生成
+        print("🤖 LLMでJSON生成中...")
+        json_data = self.generate_json_with_llm(raw_text)
+
+        if not json_data:
+            print("❌ JSON生成失敗")
             return None
-        
-        print("✅ HTML生成完了\n")
-        print("--- 生成されたHTML ---")
-        print(content_html)
+
+        print("✅ JSON生成完了\n")
+        print("--- 生成されたJSON ---")
+        print(json.dumps(json_data, ensure_ascii=False, indent=2))
         print("-" * 60 + "\n")
+
+        # 3. JSONからHTMLに変換
+        print("🔄 HTMLに変換中...")
+        content_html = self.convert_json_to_html(json_data)
+        print("✅ HTML変換完了\n")
         
-        # 3. テンプレート適用
-        full_html = self.wrap_with_template(content_html)
+        # 4. テンプレート適用
+        full_html_preview = self.wrap_with_template(content_html, for_anki=False)  # プレビュー用
+        full_html_anki = self.wrap_with_template(content_html, for_anki=True)     # Anki用
         
-        # 4. データベース保存
+        # 5. データベース保存
         source_filename = Path(input_filepath).name
-        card_id = self.save_to_database(source_filename, raw_text, full_html)
+        card_id = self.save_to_database(source_filename, raw_text, full_html_anki)  # Anki用を保存
         print(f"✅ データベース保存完了 (ID: {card_id})\n")
-        
-        # 5. プレビュー保存
+
+        # 6. プレビュー保存
         preview_path = f"output/preview_{card_id}.html"
         with open(preview_path, 'w', encoding='utf-8') as f:
-            f.write(full_html)
+            f.write(full_html_preview)  # プレビュー用を保存
         print(f"✅ プレビューファイル保存: {preview_path}\n")
-        
-        # 6. 確認UI
+
+        # 7. 確認UI
         print("=" * 60)
         print("📋 確認")
         print("=" * 60)
         print(f"プレビュー: {preview_path} をブラウザで開いて確認してください")
-        
+
         while True:
             choice = input("\nAnkiに追加しますか? (y/n/q=終了): ").strip().lower()
             
             if choice == 'y':
                 print("\n📤 Ankiに追加中...")
-                anki_id = self.add_to_anki(full_html, card_id)
+                anki_id = self.add_to_anki(full_html_anki, card_id)  # Anki用を送信
                 
                 if anki_id:
                     print(f"✅ Anki追加成功! (Note ID: {anki_id})")

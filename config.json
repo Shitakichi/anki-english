@@ -14,5 +14,8 @@
     "templates": {
         "word_template": "templates/word_card.html",
         "css_file": "templates/card_style.css"
+    },
+    "prompts": {
+        "word_prompt": "prompts/word_prompt2.json"
     }
 }
