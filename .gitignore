@@ -1,4 +1,5 @@
 ﻿database.db
 output/*.html
+output/*.json
 __pycache__/
 *.pyc
