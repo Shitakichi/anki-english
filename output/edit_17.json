@@ -1,0 +1,32 @@
+{
+  "word": "light",
+  "toeic_level": "basic",
+  "pos_sections": [
+    {
+      "pos": "名詞",
+      "meanings": [
+        "光"
+      ]
+    },
+    {
+      "pos": "形容詞",
+      "meanings": [
+        "軽い"
+      ]
+    }
+  ],
+  "core_image": "明るさ・軽さ",
+  "derivatives": [
+    {
+      "word": "lighting",
+      "meaning": "照明、光る"
+    },
+    {
+      "word": "lighter",
+      "meaning": "軽い、より軽い"
+    }
+  ],
+  "examples": [
+    "太陽の光は明るいです。"
+  ]
+}

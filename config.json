@@ -16,6 +16,7 @@
         "css_file": "templates/card_style.css"
     },
     "prompts": {
-        "word_prompt": "prompts/word_prompt3.json"
+        "extract_words_prompt": "prompts/extract_words_prompt.json",
+        "supplement_word_prompt": "prompts/supplement_word_prompt.json"
     }
 }

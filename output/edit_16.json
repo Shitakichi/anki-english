@@ -1,0 +1,34 @@
+{
+  "word": "run",
+  "toeic_level": "basic",
+  "pos_sections": [
+    {
+      "pos": "動詞",
+      "meanings": [
+        "走る",
+        "経営する"
+      ]
+    },
+    {
+      "pos": "名詞",
+      "meanings": [
+        "走ること",
+        "経営"
+      ]
+    }
+  ],
+  "core_image": "動き続ける",
+  "derivatives": [
+    {
+      "word": "running",
+      "meaning": "ランニング、経営"
+    },
+    {
+      "word": "runner",
+      "meaning": "ランナー、経営者"
+    }
+  ],
+  "examples": [
+    "I run every morning. (毎朝走ります)"
+  ]
+}
